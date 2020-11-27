@@ -3,8 +3,6 @@ package main
 import (
 	"database/sql"
 	"fmt"
-	"strconv"
-	"strings"
 )
 
 // User struct from the database
@@ -31,20 +29,6 @@ func (u *User) scan(dbUser *sql.Row) error {
 	return dbUser.Scan(&u.ID, &u.login, &u.fullName, &u.passwordHash, &u.isDisabled, &u.IP)
 }
 
-func getUserByToken(db *sql.DB, token string) (*User, error) {
-	var user *User = &User{}
-	split := strings.Split(token, tokenSeparator)
-	// userHash := split[0]
-	userID, err := strconv.Atoi(split[1])
-	if err == nil {
-		user, err = getUserByID(db, userID)
-		// if user.passwordHash != userHash {
-		// 	err = errors.New("Incorrect hash")
-		// }
-	}
-	return user, err
-}
-
 func getUserByName(db *sql.DB, name string) (*User, error) {
 	dbUser := db.QueryRow(fmt.Sprintf("SELECT * FROM user WHERE login='%s' COLLATE NOCASE", name))
 	var user *User = new(User)
@@ -59,18 +43,22 @@ func getUserByID(db *sql.DB, id int) (*User, error) {
 	return user, err
 }
 
-func addUser(db *sql.DB, login string, plaintextPassword string, IP string) error {
+func getUserByToken(db *sql.DB, tokenString string) (*User, error) {
+	token, err := getTokenByData(db, tokenString)
+	if err != nil {
+		return nil, err
+	}
+	user, err := getUserByID(db, token.userID)
+	return user, err
+}
+
+func addUser(db *sql.DB, login string, plaintextPassword string) error {
 	hashedPassword := string(hashAndSalt([]byte(plaintextPassword)))
 	_, err := db.Exec(fmt.Sprintf(
-		`INSERT INTO "main"."user" ("login", "password_hash", "ip", "is_disabled")
-		VALUES ('%s', '%s', '%s', '%d');`, login, hashedPassword, IP, 0))
+		`INSERT INTO "main"."user" ("login", "password_hash", "is_disabled")
+		VALUES ('%s', '%s', '%d');`, login, hashedPassword, 0))
 	if err != nil {
 		fmt.Println("ERROR: ", err)
 	}
 	return err
-}
-
-func createToken(user *User) string {
-	// return user.passwordHash + tokenSeparator + fmt.Sprint(user.ID)
-	return "1" // TODO: stub
 }

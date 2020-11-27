@@ -16,12 +16,11 @@ func handleLogin(db *sql.DB, w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintln(w, "User not found")
 		return
 	}
-	if comparePasswords(user.passwordHash, []byte(password)) {
+	if passwordsEqual(user.passwordHash, []byte(password)) {
 		fmt.Fprintln(w, "You have successfully logged in")
 	} else {
 		fmt.Fprintln(w, "Incorrect password.")
 	}
-
 }
 
 // GetIP gets a requests IP address by reading off the forwarded-for
@@ -32,18 +31,6 @@ func GetIP(r *http.Request) string {
 		return forwarded
 	}
 	return r.RemoteAddr
-}
-
-// addCookie will apply a new cookie to the response of a http request
-// with the key/value specified.
-func addCookie(w http.ResponseWriter, name, value string, ttl time.Duration) {
-	expire := time.Now().Add(ttl)
-	cookie := http.Cookie{
-		Name:    name,
-		Value:   value,
-		Expires: expire,
-	}
-	http.SetCookie(w, &cookie)
 }
 
 func getCredentials(r *http.Request) (username string, password string) {

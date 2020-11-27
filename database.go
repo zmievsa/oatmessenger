@@ -8,6 +8,7 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 )
 
+const dbName = "oatmessenger.db"
 const charset = "abcdefghijklmnopqrstuvwxyz" +
 	"ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 const tokenSeparator = "."
@@ -19,7 +20,6 @@ func generateDB(db *sql.DB) {
 		"full_name"		TEXT DEFAULT "",
 		"password_hash"	BLOB NOT NULL,
 		"is_disabled"	INTEGER NOT NULL,
-		"ip"			TEXT NOT NULL,
 		PRIMARY KEY("ID")
 	);`)
 	db.Exec(`CREATE TABLE "Message" (
@@ -47,9 +47,7 @@ func connectToDB(dbName string) *sql.DB {
 	var err error
 	db, _ = sql.Open("sqlite3", dbName)
 	err = db.Ping()
-	if err != nil {
-		panic(err)
-	}
+	panicIfError(err)
 	if !dbHasTables(db) {
 		generateDB(db)
 	}
@@ -58,11 +56,10 @@ func connectToDB(dbName string) *sql.DB {
 
 func main() {
 	os.Remove("oatmessenger.db")
-	db := connectToDB("oatmessenger.db")
-	err := addUser(db, "Varabe", "83", "123.11.83")
-	if err != nil {
-		panic(err)
-	}
+	db := connectToDB(dbName)
+	defer db.Close()
+	err := addUser(db, "Varabe", "83")
+	panicIfError(err)
 	user, err := getUserByID(db, 1)
 	fmt.Println(user)
 	fmt.Println(user.login)

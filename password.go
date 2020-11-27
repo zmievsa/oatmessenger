@@ -22,7 +22,7 @@ func hashAndSalt(pwd []byte) []byte {
 	return hash
 }
 
-func comparePasswords(hashedPwd []byte, plainPwd []byte) bool {
+func passwordsEqual(hashedPwd []byte, plainPwd []byte) bool {
 	// Since we'll be getting the hashed password from the DB it
 	// will be a string so we'll need to convert it to a byte slice
 	err := bcrypt.CompareHashAndPassword(hashedPwd, plainPwd)
