@@ -2,3 +2,5 @@
 *.out
 secret.txt
 *.code-workspace
+*/node_modules/
+old_frontend/

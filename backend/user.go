@@ -12,7 +12,6 @@ type User struct {
 	fullName     string
 	passwordHash []byte
 	isDisabled   bool
-	IP           string
 }
 
 func (u *User) String() string {
@@ -21,12 +20,11 @@ func (u *User) String() string {
 	login: %s
 	fullname: %s
 	passwordHash: %s
-	isDisabled: %t
-	IP: %s`, u.ID, u.login, u.fullName, u.passwordHash, u.isDisabled, u.IP)
+	isDisabled: %t`, u.ID, u.login, u.fullName, u.passwordHash, u.isDisabled)
 }
 
 func (u *User) scan(dbUser *sql.Row) error {
-	return dbUser.Scan(&u.ID, &u.login, &u.fullName, &u.passwordHash, &u.isDisabled, &u.IP)
+	return dbUser.Scan(&u.ID, &u.login, &u.fullName, &u.passwordHash, &u.isDisabled)
 }
 
 func getUserByName(db *sql.DB, name string) (*User, error) {

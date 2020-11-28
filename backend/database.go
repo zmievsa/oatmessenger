@@ -2,8 +2,6 @@ package main
 
 import (
 	"database/sql"
-	"fmt"
-	"os"
 
 	_ "github.com/mattn/go-sqlite3"
 )
@@ -54,15 +52,15 @@ func connectToDB(dbName string) *sql.DB {
 	return db
 }
 
-func main() {
-	os.Remove("oatmessenger.db")
-	db := connectToDB(dbName)
-	defer db.Close()
-	err := addUser(db, "Varabe", "83")
-	panicIfError(err)
-	user, err := getUserByID(db, 1)
-	fmt.Println(user)
-	fmt.Println(user.login)
-	user, err = getUserByName(db, "Varabe")
-	fmt.Println(user)
-}
+// func main() {
+// 	os.Remove("oatmessenger.db")
+// 	db := connectToDB(dbName)
+// 	defer db.Close()
+// 	err := addUser(db, "Varabe", "83")
+// 	panicIfError(err)
+// 	user, err := getUserByID(db, 1)
+// 	fmt.Println(user)
+// 	fmt.Println(user.login)
+// 	user, err = getUserByName(db, "Varabe")
+// 	fmt.Println(user)
+// }
