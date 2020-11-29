@@ -31,6 +31,7 @@ func handleLogin(w http.ResponseWriter, r *http.Request) {
 	}
 	err = signin(w, *creds)
 	if err != nil {
+		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
 }

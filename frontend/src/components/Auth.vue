@@ -41,8 +41,29 @@ export default {
         .post("/register/", data, {
           headers: { "Content-Type": "application/json" },
         })
-        .then((res) => {
-          console.log(res.headers);
+        .then(() => {
+          this.$emit("setcookie");
+        })
+        .catch((err) => {
+          console.log(err.response);
+        });
+    },
+    login: function () {
+      console.log(
+        "Clicked register. Input fields: " +
+          this.usernameModel +
+          ", " +
+          this.passwordModel
+      );
+      var data = {
+        username: this.usernameModel,
+        password: this.passwordModel,
+      };
+      axios
+        .post("/login/", data, {
+          headers: { "Content-Type": "application/json" },
+        })
+        .then(() => {
           this.$emit("setcookie");
         })
         .catch((err) => {
