@@ -3,7 +3,6 @@ package main
 import (
 	"database/sql"
 	"fmt"
-	"log"
 )
 
 // User struct from the database
@@ -41,10 +40,7 @@ func getUserByName(db *sql.DB, name string) (*User, error) {
 
 func searchUsersByName(db *sql.DB, name string, searcherUserid int) (users []*User) {
 	users = []*User{}
-	q := fmt.Sprintf("SELECT * FROM user WHERE login LIKE '%%%s%%' COLLATE NOCASE", name)
-	//WHERE NOT (ID=%d)
-	//searcherUserid
-	log.Println(q)
+	q := fmt.Sprintf("SELECT * FROM user WHERE (login LIKE '%%%s%%' AND NOT (ID=%d)) COLLATE NOCASE", name, searcherUserid)
 	rows, err := db.Query(q)
 	if err != nil {
 		return
