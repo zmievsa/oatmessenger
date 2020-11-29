@@ -3,15 +3,16 @@ package main
 import (
 	"database/sql"
 	"fmt"
+	"log"
 )
 
 // User struct from the database
 type User struct {
 	ID           int
-	login        string
-	fullName     string
-	passwordHash []byte
-	isDisabled   bool
+	Login        string
+	FullName     string
+	PasswordHash []byte
+	IsDisabled   bool
 }
 
 func (u *User) String() string {
@@ -20,11 +21,15 @@ func (u *User) String() string {
 	login: %s
 	fullname: %s
 	passwordHash: %s
-	isDisabled: %t`, u.ID, u.login, u.fullName, u.passwordHash, u.isDisabled)
+	isDisabled: %t`, u.ID, u.Login, u.FullName, u.PasswordHash, u.IsDisabled)
 }
 
-func (u *User) scan(dbUser *sql.Row) error {
-	return dbUser.Scan(&u.ID, &u.login, &u.fullName, &u.passwordHash, &u.isDisabled)
+type scanner interface {
+	Scan(dest ...interface{}) error
+}
+
+func (u *User) scan(dbUser scanner) error {
+	return dbUser.Scan(&u.ID, &u.Login, &u.FullName, &u.PasswordHash, &u.IsDisabled)
 }
 
 func getUserByName(db *sql.DB, name string) (*User, error) {
@@ -32,6 +37,33 @@ func getUserByName(db *sql.DB, name string) (*User, error) {
 	var user *User = new(User)
 	err := user.scan(dbUser)
 	return user, err
+}
+
+func searchUsersByName(db *sql.DB, name string, searcherUserid int) (users []*User) {
+	users = []*User{}
+	q := fmt.Sprintf("SELECT * FROM user WHERE login LIKE '%%%s%%' COLLATE NOCASE", name)
+	//WHERE NOT (ID=%d)
+	//searcherUserid
+	log.Println(q)
+	rows, err := db.Query(q)
+	if err != nil {
+		return
+	}
+
+	defer rows.Close()
+	for rows.Next() {
+		var user *User = new(User)
+
+		err = user.scan(rows)
+		if err != nil {
+			return
+		}
+
+		users = append(users, user)
+
+	}
+	return
+
 }
 
 func getUserByID(db *sql.DB, id int) (*User, error) {

@@ -3,9 +3,7 @@
     <div v-if="cookieExists == false" id="hide">
       <Auth msg="Auth" @setcookie="cookieExists = true" />
     </div>
-    <div v-if="cookieExists == true" id="hide">
-      <Messenger msg="Messenger" />
-    </div>
+    <Messenger ref="messenger" msg="Messenger" />
   </div>
 </template>
 
@@ -41,7 +39,9 @@ export default {
           this.cookieExists = false;
         });
     },
-    showMessenger: function () {},
+    showMessenger: function () {
+      this.$refs.messenger.show();
+    },
   },
   watch: {
     cookieExists: function (val, oldval) {

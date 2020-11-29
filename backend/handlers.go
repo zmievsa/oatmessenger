@@ -9,12 +9,6 @@ import (
 	"github.com/dgrijalva/jwt-go"
 )
 
-// Credentials json struct
-type Credentials struct {
-	Username string `json:"username"`
-	Password string `json:"password"`
-}
-
 func getCredentials(r *http.Request) (*Credentials, error) {
 	creds := new(Credentials)
 	log.Println("DEBUG: GETCREDENTIALS()")
@@ -28,7 +22,7 @@ func signin(w http.ResponseWriter, creds Credentials) (err error) {
 	defer db.Close()
 	user, err := getUserByName(db, creds.Username)
 
-	if err != nil || !passwordsEqual(user.passwordHash, []byte(creds.Password)) {
+	if err != nil || !passwordsEqual(user.PasswordHash, []byte(creds.Password)) {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
@@ -45,45 +39,45 @@ func signin(w http.ResponseWriter, creds Credentials) (err error) {
 	return nil
 }
 
-func welcome(w http.ResponseWriter, r *http.Request) (user *User, err error) {
-	// We can obtain the session token from the requests cookies, which come with every request
-	claims, err := getCookie(w, r)
-	if err != nil {
-		if err == http.ErrNoCookie {
-			// w.WriteHeader(http.StatusUnauthorized)
-			return
-		}
-		// w.WriteHeader(http.StatusBadRequest)
-		return
-	}
-	db := connectToDB(dbName)
-	defer db.Close()
-	user, err = getUserByID(db, getUserIDFromClaims(claims))
-	// w.Write([]byte(fmt.Sprintf("Welcome %s!", user.login)))
-	return user, err
-}
+// func welcome(w http.ResponseWriter, r *http.Request) (user *User, err error) {
+// 	// We can obtain the session token from the requests cookies, which come with every request
+// 	user, err := parseCookie(w, r)
+// 	if err != nil {
+// 		if err == http.ErrNoCookie {
+// 			// w.WriteHeader(http.StatusUnauthorized)
+// 			return
+// 		}
+// 		// w.WriteHeader(http.StatusBadRequest)
+// 		return
+// 	}
+// 	db := connectToDB(dbName)
+// 	defer db.Close()
+// 	user, err = getUserByID(db, getUserIDFromClaims(claims))
+// 	// w.Write([]byte(fmt.Sprintf("Welcome %s!", user.login)))
+// 	return user, err
+// }
 
-func renewCookie(w http.ResponseWriter, r *http.Request) (err error) {
-	claims, err := getCookie(w, r)
-	if err != nil {
-		return
-	}
+// func renewCookie(w http.ResponseWriter, r *http.Request) (err error) {
+// 	claims, err := parseCookie(w, r)
+// 	if err != nil {
+// 		return
+// 	}
 
-	// Now, create a new token for the current use, with a renewed expiration time
-	// expirationTime := time.Now().Add(15 * time.Minute)
-	// (*claims)["nbf"] = NEW NBF
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	tokenString, err := token.SignedString(hmacSecret)
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
+// 	// Now, create a new token for the current use, with a renewed expiration time
+// 	// expirationTime := time.Now().Add(15 * time.Minute)
+// 	// (*claims)["nbf"] = NEW NBF
+// 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+// 	tokenString, err := token.SignedString(hmacSecret)
+// 	if err != nil {
+// 		w.WriteHeader(http.StatusInternalServerError)
+// 		return
+// 	}
 
-	addCookie(w, sessionTokenName, tokenString)
-	return nil
-}
+// 	addCookie(w, sessionTokenName, tokenString)
+// 	return nil
+// }
 
-func getCookie(w http.ResponseWriter, r *http.Request) (claims *jwt.MapClaims, err error) {
+func parseCookie(w http.ResponseWriter, r *http.Request) (user *User, err error) {
 	c, err := r.Cookie(sessionTokenName)
 	if err != nil {
 		return
@@ -91,7 +85,7 @@ func getCookie(w http.ResponseWriter, r *http.Request) (claims *jwt.MapClaims, e
 
 	// Check cookie validity
 	tknStr := c.Value
-	claims = &jwt.MapClaims{}
+	claims := &jwt.MapClaims{}
 	tkn, err := jwt.ParseWithClaims(tknStr, claims, func(token *jwt.Token) (interface{}, error) {
 		return hmacSecret, nil
 	})
@@ -100,7 +94,7 @@ func getCookie(w http.ResponseWriter, r *http.Request) (claims *jwt.MapClaims, e
 	if err != nil || !tkn.Valid {
 
 		signedString, _ := tkn.SignedString(hmacSecret)
-		return claims, fmt.Errorf("err: %s, Invalid cookie token: %s", err, signedString)
+		return nil, fmt.Errorf("err: %s, Invalid cookie token: %s", err, signedString)
 	}
 	if err != nil {
 		// Invalid token Signature
@@ -113,12 +107,12 @@ func getCookie(w http.ResponseWriter, r *http.Request) (claims *jwt.MapClaims, e
 	db := connectToDB(dbName)
 	defer db.Close()
 	fmt.Println((*claims)["userid"])
-	user, err := getUserByID(db, getUserIDFromClaims(claims))
+	user, err = getUserByID(db, getUserIDFromClaims(claims))
 	if err != nil {
 		log.Printf("User with ID %d not found.\n", getUserIDFromClaims(claims))
 		return
 	}
-	log.Printf("Found user with ID from the cookie! (Name: %s, ID: %d)\n", user.login, user.ID)
+	log.Printf("Found user with ID from the cookie! (Name: %s, ID: %d)\n", user.Login, user.ID)
 	return
 }
 

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
@@ -69,21 +70,21 @@ func handleRegistration(w http.ResponseWriter, r *http.Request) {
 	log.Printf("Successfully registered %s.\n", creds.Username)
 }
 func handleRoot(w http.ResponseWriter, r *http.Request) {
-	// setupResponse(&w, r)
-	log.Println("The root was pinged.")
-	_, err := welcome(w, r)
-	var fileNameToServe string
-	if err == nil {
-		fileNameToServe = "html/index.html"
-	} else {
-		fileNameToServe = "html/auth.html"
-	}
-	http.ServeFile(w, r, fileNameToServe)
+	// // setupResponse(&w, r)
+	// log.Println("The root was pinged.")
+	// // _, err := welcome(w, r)
+	// var fileNameToServe string
+	// if err == nil {
+	// 	fileNameToServe = "html/index.html"
+	// } else {
+	// 	fileNameToServe = "html/auth.html"
+	// }
+	// http.ServeFile(w, r, fileNameToServe)
 }
 
 func handleCheckCookieExistence(w http.ResponseWriter, r *http.Request) {
 	log.Println("checkCookieExistence()")
-	_, err := getCookie(w, r)
+	_, err := parseCookie(w, r)
 	if err != nil {
 		log.Println("No cookie found.")
 		log.Println(err)
@@ -93,7 +94,34 @@ func handleCheckCookieExistence(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	}
 	return
+}
+func findUsersHandler(w http.ResponseWriter, r *http.Request) {
+	log.Println("findUsers()")
+	user, err := parseCookie(w, r)
+	if err != nil {
+		log.Println("No cookie found.")
+		log.Println(err)
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
 
+	jsonData := new(JsonName)
+
+	log.Println("Decoding json...")
+	err = json.NewDecoder(r.Body).Decode(&jsonData)
+	if err != nil {
+		log.Println("Error: ", err)
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	db := connectToDB(dbName)
+	defer db.Close()
+
+	users := searchUsersByName(db, jsonData.Name, user.ID)
+	encodedJSON, err := json.Marshal(users)
+	log.Printf("Users: %s, Users json: %s, \nError: %s \n", users, encodedJSON, err)
+	json.NewEncoder(w).Encode(users)
 }
 
 func main() {
@@ -103,6 +131,7 @@ func main() {
 	mux.HandleFunc("/register/", handleRegistration)
 	mux.HandleFunc("/login/", handleLogin)
 	mux.HandleFunc("/checkCookieExistence/", handleCheckCookieExistence)
+	mux.HandleFunc("/findUsers/", findUsersHandler)
 	c := cors.New(cors.Options{
 		AllowedOrigins:   allowedOrigins,
 		AllowCredentials: true,
