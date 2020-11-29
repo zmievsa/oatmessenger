@@ -10,6 +10,8 @@ import (
 
 const cookieName = "oatmessenger_auth"
 
+var allowedOrigins = []string{"http://127.0.0.1:8080", "http://127.0.0.1:8090"}
+
 // GetIP gets a requests IP address by reading off the forwarded-for
 // header (for proxies) and falls back to use the remote address.
 func GetIP(r *http.Request) string {
@@ -50,6 +52,7 @@ func handleRegistration(w http.ResponseWriter, r *http.Request) {
 	_, err = getUserByName(db, creds.Username)
 	if err == nil {
 		fmt.Fprintf(w, "User %s already exists.\n", creds.Username)
+		w.WriteHeader(http.StatusForbidden)
 		return
 	}
 	err = addUser(db, creds.Username, creds.Password)
@@ -59,7 +62,6 @@ func handleRegistration(w http.ResponseWriter, r *http.Request) {
 	}
 	err = signin(w, *creds)
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
 		fmt.Fprintln(w, "We have successfully registered you but weren't able to sign you in.")
 	}
 	fmt.Fprintf(w, "You successfully registered, %s!\n", creds.Username)
@@ -78,19 +80,36 @@ func handleRoot(w http.ResponseWriter, r *http.Request) {
 	http.ServeFile(w, r, fileNameToServe)
 }
 
+func handleCheckCookieExistence(w http.ResponseWriter, r *http.Request) {
+	log.Println("checkCookieExistence()")
+	_, err := getCookie(w, r)
+	if err != nil {
+		log.Println("No cookie found.")
+		log.Println(err)
+		w.WriteHeader(http.StatusUnauthorized)
+	} else {
+		log.Println("Found a cookie!")
+		w.WriteHeader(http.StatusOK)
+	}
+	return
+
+}
+
 func main() {
+	initSecret()
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", handleRoot)
 	mux.HandleFunc("/register/", handleRegistration)
 	mux.HandleFunc("/login/", handleLogin)
+	mux.HandleFunc("/checkCookieExistence/", handleCheckCookieExistence)
 	c := cors.New(cors.Options{
-		AllowedOrigins:   []string{"http://127.0.0.1:8080"},
+		AllowedOrigins:   allowedOrigins,
 		AllowCredentials: true,
 		// Enable Debugging for testing, consider disabling in production
 		Debug:          true,
 		AllowedMethods: []string{"GET", "POST", "OPTIONS"},
 	})
 	handler := c.Handler(mux)
-	fmt.Println("You can now access the web app at http://localhost:8090")
+	fmt.Println("You can now access the web app at http://127.0.0.1:8090")
 	log.Fatal(http.ListenAndServe(":8090", handler))
 }

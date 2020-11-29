@@ -2,9 +2,9 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
-	"time"
 
 	"github.com/dgrijalva/jwt-go"
 )
@@ -33,13 +33,15 @@ func signin(w http.ResponseWriter, creds Credentials) (err error) {
 		return
 	}
 
-	tokenString, expirationTime, err := buildNewToken(user)
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
+	tokenString := buildNewToken(user)
+	// if err != nil {
+	// 	fmt.Println(err.Error())
+	// 	w.WriteHeader(http.StatusInternalServerError)
+	// 	return
+	// }
 
-	addCookie(w, sessionTokenName, tokenString, expirationTime)
+	addCookie(w, sessionTokenName, tokenString)
+	w.WriteHeader(http.StatusOK)
 	return nil
 }
 
@@ -56,7 +58,7 @@ func welcome(w http.ResponseWriter, r *http.Request) (user *User, err error) {
 	}
 	db := connectToDB(dbName)
 	defer db.Close()
-	user, err = getUserByID(db, claims.userID)
+	user, err = getUserByID(db, getUserIDFromClaims(claims))
 	// w.Write([]byte(fmt.Sprintf("Welcome %s!", user.login)))
 	return user, err
 }
@@ -66,17 +68,10 @@ func renewCookie(w http.ResponseWriter, r *http.Request) (err error) {
 	if err != nil {
 		return
 	}
-	// We ensure that a new token is not issued until enough time has elapsed
-	// In this case, a new token will only be issued if the old token is within
-	// 30 seconds of expiry. Otherwise, return a bad request status
-	if time.Unix(claims.ExpiresAt, 0).Sub(time.Now()) > 30*time.Second {
-		w.WriteHeader(http.StatusBadRequest)
-		return
-	}
 
 	// Now, create a new token for the current use, with a renewed expiration time
-	expirationTime := time.Now().Add(15 * time.Minute)
-	claims.ExpiresAt = expirationTime.Unix()
+	// expirationTime := time.Now().Add(15 * time.Minute)
+	// (*claims)["nbf"] = NEW NBF
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	tokenString, err := token.SignedString(hmacSecret)
 	if err != nil {
@@ -84,48 +79,61 @@ func renewCookie(w http.ResponseWriter, r *http.Request) (err error) {
 		return
 	}
 
-	addCookie(w, sessionTokenName, tokenString, expirationTime)
+	addCookie(w, sessionTokenName, tokenString)
 	return nil
 }
 
-func getCookie(w http.ResponseWriter, r *http.Request) (claims *Claims, err error) {
-	c, err := r.Cookie(tokenName)
+func getCookie(w http.ResponseWriter, r *http.Request) (claims *jwt.MapClaims, err error) {
+	c, err := r.Cookie(sessionTokenName)
 	if err != nil {
 		return
 	}
 
 	// Check cookie validity
 	tknStr := c.Value
-	claims = &Claims{}
+	claims = &jwt.MapClaims{}
 	tkn, err := jwt.ParseWithClaims(tknStr, claims, func(token *jwt.Token) (interface{}, error) {
 		return hmacSecret, nil
 	})
 
 	// Invalid token
-	if !tkn.Valid {
-		w.WriteHeader(http.StatusUnauthorized)
-		return
+	if err != nil || !tkn.Valid {
+
+		signedString, _ := tkn.SignedString(hmacSecret)
+		return claims, fmt.Errorf("err: %s, Invalid cookie token: %s", err, signedString)
 	}
 	if err != nil {
 		// Invalid token Signature
 		if err == jwt.ErrSignatureInvalid {
-			w.WriteHeader(http.StatusUnauthorized)
 			return
 		}
 		// Unknown token problem
-		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
+	db := connectToDB(dbName)
+	defer db.Close()
+	fmt.Println((*claims)["userid"])
+	user, err := getUserByID(db, getUserIDFromClaims(claims))
+	if err != nil {
+		log.Printf("User with ID %d not found.\n", getUserIDFromClaims(claims))
+		return
+	}
+	log.Printf("Found user with ID from the cookie! (Name: %s, ID: %d)\n", user.login, user.ID)
 	return
 }
 
 // addCookie will apply a new cookie to the response of a http request
-// with the key/value specified.
-func addCookie(w http.ResponseWriter, name, value string, expirationTime time.Time) {
+// with the key/value specified and will apply Set-Cookie header
+func addCookie(w http.ResponseWriter, name, value string) {
+	log.Println("Setting a cookie")
 	cookie := http.Cookie{
-		Name:    name,
-		Value:   value,
-		Expires: expirationTime,
+		Name:     name,
+		Value:    value,
+		Secure:   true,
+		SameSite: http.SameSiteNoneMode,
+		Domain:   "127.0.0.1",
+		Path:     "/",
 	}
 	http.SetCookie(w, &cookie)
+	log.Println(w.Header())
 }
