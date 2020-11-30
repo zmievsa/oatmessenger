@@ -11,7 +11,7 @@ type User struct {
 	Login        string
 	FullName     string
 	PasswordHash []byte
-	IsDisabled   bool
+	Dialogues    string
 }
 
 func (u *User) String() string {
@@ -20,7 +20,7 @@ func (u *User) String() string {
 	login: %s
 	fullname: %s
 	passwordHash: %s
-	isDisabled: %t`, u.ID, u.Login, u.FullName, u.PasswordHash, u.IsDisabled)
+	dialogues: %s`, u.ID, u.Login, u.FullName, u.PasswordHash, u.Dialogues)
 }
 
 type scanner interface {
@@ -28,7 +28,7 @@ type scanner interface {
 }
 
 func (u *User) scan(dbUser scanner) error {
-	return dbUser.Scan(&u.ID, &u.Login, &u.FullName, &u.PasswordHash, &u.IsDisabled)
+	return dbUser.Scan(&u.ID, &u.Login, &u.FullName, &u.PasswordHash, &u.Dialogues)
 }
 
 func getUserByName(db *sql.DB, name string) (*User, error) {
@@ -81,10 +81,16 @@ func getUserByToken(db *sql.DB, tokenString string) (*User, error) {
 func addUser(db *sql.DB, login string, plaintextPassword string) error {
 	hashedPassword := string(hashAndSalt([]byte(plaintextPassword)))
 	_, err := db.Exec(fmt.Sprintf(
-		`INSERT INTO "main"."user" ("login", "password_hash", "is_disabled")
-		VALUES ('%s', '%s', '%d');`, login, hashedPassword, 0))
+		`INSERT INTO "main"."user" ("login", "password_hash")
+		VALUES ('%s', '%s');`, login, hashedPassword))
 	if err != nil {
 		fmt.Println("ERROR: ", err)
 	}
+	return err
+}
+
+func setUserFullName(db *sql.DB, userID int, newName string) error {
+	q := fmt.Sprintf("UPDATE user SET full_name = '%s' WHERE (ID=%d)", newName, userID)
+	_, err := db.Exec(q)
 	return err
 }

@@ -17,7 +17,7 @@ func generateDB(db *sql.DB) {
 		"login"			TEXT NOT NULL UNIQUE,
 		"full_name"		TEXT DEFAULT "",
 		"password_hash"	BLOB NOT NULL,
-		"is_disabled"	INTEGER NOT NULL,
+		"dialogues" TEXT DEFAULT "",
 		PRIMARY KEY("ID")
 	);`)
 	db.Exec(`CREATE TABLE "Message" (

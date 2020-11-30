@@ -5,6 +5,9 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strconv"
+	"strings"
+	"time"
 
 	"github.com/rs/cors"
 )
@@ -32,7 +35,6 @@ func handleLogin(w http.ResponseWriter, r *http.Request) {
 	}
 	err = signin(w, *creds)
 	if err != nil {
-		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
 }
@@ -53,7 +55,6 @@ func handleRegistration(w http.ResponseWriter, r *http.Request) {
 	defer db.Close()
 	_, err = getUserByName(db, creds.Username)
 	if err == nil {
-		fmt.Fprintf(w, "User %s already exists.\n", creds.Username)
 		w.WriteHeader(http.StatusForbidden)
 		return
 	}
@@ -64,22 +65,10 @@ func handleRegistration(w http.ResponseWriter, r *http.Request) {
 	}
 	err = signin(w, *creds)
 	if err != nil {
-		fmt.Fprintln(w, "We have successfully registered you but weren't able to sign you in.")
+		fmt.Fprintf(w, "We have successfully registered you but weren't able to sign you in. (err: %s)\n", err.Error())
 	}
 	fmt.Fprintf(w, "You successfully registered, %s!\n", creds.Username)
 	log.Printf("Successfully registered %s.\n", creds.Username)
-}
-func handleRoot(w http.ResponseWriter, r *http.Request) {
-	// // setupResponse(&w, r)
-	// log.Println("The root was pinged.")
-	// // _, err := welcome(w, r)
-	// var fileNameToServe string
-	// if err == nil {
-	// 	fileNameToServe = "html/index.html"
-	// } else {
-	// 	fileNameToServe = "html/auth.html"
-	// }
-	// http.ServeFile(w, r, fileNameToServe)
 }
 
 func handleCheckCookieExistence(w http.ResponseWriter, r *http.Request) {
@@ -95,7 +84,7 @@ func handleCheckCookieExistence(w http.ResponseWriter, r *http.Request) {
 	}
 	return
 }
-func findUsersHandler(w http.ResponseWriter, r *http.Request) {
+func handleFindUsers(w http.ResponseWriter, r *http.Request) {
 	log.Println("findUsers()")
 	user, err := parseCookie(w, r)
 	if err != nil {
@@ -124,14 +113,107 @@ func findUsersHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(users)
 }
 
+func msToTime(ms string) (time.Time, error) {
+	msInt, err := strconv.ParseInt(ms, 10, 64)
+	if err != nil {
+		return time.Time{}, err
+	}
+
+	return time.Unix(0, msInt*int64(time.Millisecond)), nil
+}
+
+func handleLogout(w http.ResponseWriter, r *http.Request) {
+	t, _ := msToTime("0")
+	cookie := http.Cookie{
+		Name:     sessionTokenName,
+		Value:    "",
+		Secure:   true,
+		Expires:  t,
+		SameSite: http.SameSiteNoneMode,
+		Domain:   "127.0.0.1",
+		Path:     "/",
+	}
+	http.SetCookie(w, &cookie)
+}
+
+func handleGetAllDialogues(w http.ResponseWriter, r *http.Request) {
+	log.Println("getAllDialogues()")
+	user, err := parseCookie(w, r)
+	if err != nil {
+		log.Println("No cookie found.")
+		log.Println(err)
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+	db := connectToDB(dbName)
+	defer db.Close()
+	users := []*User{}
+	if user.Dialogues != "" {
+		userIdsAsStrings := strings.Split(user.Dialogues, ";")
+		userIds := []int{}
+		// Convert str arr to int arr
+		for _, idAsStr := range userIdsAsStrings {
+			idAsInt, err := strconv.Atoi(idAsStr)
+			if err != nil {
+				panic(err)
+			}
+			userIds = append(userIds, idAsInt)
+		}
+		for _, id := range userIds {
+			dialogueUser, _ := getUserByID(db, id)
+			users = append(users, dialogueUser)
+		}
+
+	}
+	json.NewEncoder(w).Encode(users)
+}
+
+func handleGetUser(w http.ResponseWriter, r *http.Request) {
+	log.Println("getUser()")
+	user, err := parseCookie(w, r)
+	if err != nil {
+		log.Println("No cookie found.")
+		log.Println(err)
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+	json.NewEncoder(w).Encode(user)
+}
+
+func handleSetFullname(w http.ResponseWriter, r *http.Request) {
+	log.Println("setFullname()")
+	jsonData := new(JsonFullName)
+
+	log.Println("Decoding json...")
+	err := json.NewDecoder(r.Body).Decode(&jsonData)
+	if err != nil {
+		log.Println("No json arguments supplied.")
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+	user, err := parseCookie(w, r)
+	if err != nil {
+		log.Println("No cookie found.")
+		log.Println(err)
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+	db := connectToDB(dbName)
+	defer db.Close()
+	err = setUserFullName(db, user.ID, jsonData.Name)
+}
+
 func main() {
 	initSecret()
 	mux := http.NewServeMux()
-	mux.HandleFunc("/", handleRoot)
 	mux.HandleFunc("/register/", handleRegistration)
 	mux.HandleFunc("/login/", handleLogin)
 	mux.HandleFunc("/checkCookieExistence/", handleCheckCookieExistence)
-	mux.HandleFunc("/findUsers/", findUsersHandler)
+	mux.HandleFunc("/findUsers/", handleFindUsers)
+	mux.HandleFunc("/logout/", handleLogout)
+	mux.HandleFunc("/getAllDialogues/", handleGetAllDialogues)
+	mux.HandleFunc("/getUser/", handleGetUser)
+	mux.HandleFunc("/setFullName/", handleSetFullname)
 	c := cors.New(cors.Options{
 		AllowedOrigins:   allowedOrigins,
 		AllowCredentials: true,

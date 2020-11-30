@@ -9,3 +9,7 @@ type Credentials struct {
 type JsonName struct {
 	Name string `json:"name"`
 }
+
+type JsonFullName struct {
+	Name string `json:"fullname"`
+}

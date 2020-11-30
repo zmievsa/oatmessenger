@@ -2,6 +2,15 @@
   <div class="messenger">
     <div v-if="showInterface === true" id="hide">
       <ul id="topbar">
+        <h3>
+          Welcome, {{ user["Login"] }} (Full name: {{ user["FullName"] }})
+        </h3>
+        <input
+          type="text"
+          v-model="newFullName"
+          placeholder="Type new full name here"
+        />
+        <button v-on:click="setFullName()">Change full name</button>
         <button v-on:click="logout()">Log out</button>
       </ul>
       <div id="box1">
@@ -50,6 +59,7 @@ export default {
       dialogues: [],
       searchUsernameField: "",
       searchedUsers: [],
+      newFullName: "",
     };
   },
   methods: {
@@ -58,13 +68,18 @@ export default {
       this.showInterface = true;
     },
     buildInterface() {
+      axios.get("/getUser/").then((res) => {
+        this.user = res.data;
+      });
       axios
         .get("/getAllDialogues/")
         .then((res) => {
-          this.dialogues = res.data.dialogues;
+          for (var i = 0; i < res.data.length; i++) {
+            this.dialogues.push({ user: res.data[i], messages: [] });
+          }
         })
         .catch((err) => {
-          window.alert("Error: ", err.response);
+          console.log("Error: ", err.response);
         });
     },
     openChat() {
@@ -72,6 +87,26 @@ export default {
     },
     logout() {
       console.log("Log out");
+      axios.post("/logout/").then(() => {
+        this.user = {};
+        this.dialogues = [];
+        this.searchedUsers = [];
+        this.searchUsernameField = "";
+        this.showInterface = false;
+        this.$emit("setcookie");
+      });
+    },
+    setFullName() {
+      axios
+        .post(
+          "/setFullName/",
+          { fullname: this.newFullName },
+          { headers: { "Content-Type": "application/json" } }
+        )
+        .then(() => {
+          this.user["FullName"] = this.newFullName;
+          this.newFullName = "";
+        });
     },
   },
   watch: {

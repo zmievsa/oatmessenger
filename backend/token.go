@@ -37,22 +37,6 @@ func initSecret() {
 	hmacSecret = dat
 }
 
-// func buildNewToken(user *User) (token string, expirationTime time.Time, err error) {
-// 	log.Println("buildNewToken() for User:")
-// 	log.Println(user)
-// 	expirationTime = time.Now().Add(30 * time.Minute)
-
-// 	// Stub because I don't have time to properly calculate it
-// 	unsignedToken := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-// 		"foo": "bar",
-// 		"nbf": time.Date(2015, 10, 10, 12, 0, 0, 0, time.UTC).Unix(),
-// 	})
-// 	fmt.Println("Token is valid: ", unsignedToken.Valid)
-// 	// Sign and get the complete encoded token as a string using the secret
-// 	token, err = unsignedToken.SignedString(hmacSecret)
-// 	fmt.Println("Token: ", token)
-// 	return token, expirationTime, err
-// }
 func buildNewToken(user *User) string {
 	log.Println("buildNewToken() for User:")
 	log.Println(user)
