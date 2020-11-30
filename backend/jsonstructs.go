@@ -13,3 +13,8 @@ type JsonName struct {
 type JsonFullName struct {
 	Name string `json:"fullname"`
 }
+
+type JsonGetMessages struct {
+	UserWithID int `json:"user_with_id"`
+	Offset     int `json:"offset"`
+}

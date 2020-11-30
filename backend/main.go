@@ -203,6 +203,33 @@ func handleSetFullname(w http.ResponseWriter, r *http.Request) {
 	err = setUserFullName(db, user.ID, jsonData.Name)
 }
 
+func handleGetMessages(w http.ResponseWriter, r *http.Request) {
+	log.Println("getMessages()")
+	user, err := parseCookie(w, r)
+	if err != nil {
+		log.Println("No cookie found.")
+		log.Println(err)
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+	jsonData := new(JsonGetMessages)
+
+	log.Println("Decoding json...")
+	err = json.NewDecoder(r.Body).Decode(&jsonData)
+	if err != nil {
+		log.Println("No json arguments supplied.")
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	db := connectToDB(dbName)
+	defer db.Close()
+	messages, err := getMessagesByUserIds(db, user.ID, jsonData.UserWithID)
+	log.Println(err)
+	err = json.NewEncoder(w).Encode(messages)
+	log.Println(err)
+}
+
 func main() {
 	initSecret()
 	mux := http.NewServeMux()
@@ -214,6 +241,7 @@ func main() {
 	mux.HandleFunc("/getAllDialogues/", handleGetAllDialogues)
 	mux.HandleFunc("/getUser/", handleGetUser)
 	mux.HandleFunc("/setFullName/", handleSetFullname)
+	mux.HandleFunc("/getMessages/", handleGetMessages)
 	c := cors.New(cors.Options{
 		AllowedOrigins:   allowedOrigins,
 		AllowCredentials: true,

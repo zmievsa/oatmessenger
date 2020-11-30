@@ -24,8 +24,9 @@ func generateDB(db *sql.DB) {
 		"ID"			INTEGER NOT NULL UNIQUE,
 		"user_id_from"	INTEGER NOT NULL,
 		"user_id_for"	INTEGER NOT NULL,
-		"text"			TEXT,
-		"attachments"	TEXT,
+		"text"			TEXT DEFAULT "",
+		"attachments"	TEXT DEFAULT "",
+		"datetime"		TEXT NOT NULL,
 		PRIMARY KEY("ID" AUTOINCREMENT)
 	);`)
 	db.Exec(`CREATE TABLE "Token" (
