@@ -21,7 +21,9 @@
               :userID="dialogue['user']['ID']"
               v-on:click="openChat(userID)"
             >
-              {{ dialogue["user"]["Login"] }}
+              {{ dialogue["user"]["Login"] }} ({{
+                dialogue["user"]["FullName"]
+              }})
             </button>
           </li>
         </ul>
@@ -36,7 +38,7 @@
         <ul id="userSearchList">
           <li v-for="(user, index) in searchedUsers" :key="`user-${index}`">
             <button :userID="user['ID']" v-on:click="openChat(userID)">
-              {{ user["Login"] }}
+              {{ user["Login"] }} ({{ user["FullName"] }})
             </button>
           </li>
         </ul>
