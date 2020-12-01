@@ -117,7 +117,8 @@ export default {
   },
   computed: {
     currentMessages: function () {
-      return this.dialogues[this.currentDialogueIndex]["messages"];
+      if (this.currentDialogueIndex === -1) return [];
+      else return this.dialogues[this.currentDialogueIndex]["messages"];
     },
   },
   methods: {
@@ -240,6 +241,7 @@ export default {
         this.searchUsernameField = "";
         this.showInterface = false;
         this.$emit("setcookie");
+        this.socket.close();
       });
     },
     setFullName() {

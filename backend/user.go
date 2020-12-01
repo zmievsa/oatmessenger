@@ -47,6 +47,7 @@ func searchUsersByName(db *sql.DB, name string, searcherUserid int) (users []*Us
 	log.Println(q)
 	rows, err := db.Query(q)
 	if err != nil {
+		log.Println("Query err: ", err)
 		return
 	}
 
@@ -56,6 +57,7 @@ func searchUsersByName(db *sql.DB, name string, searcherUserid int) (users []*Us
 
 		err = user.scan(rows)
 		if err != nil {
+			log.Println("Scanning err: ", err)
 			return
 		}
 
