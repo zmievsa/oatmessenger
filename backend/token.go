@@ -1,3 +1,5 @@
+// Everything related to tokens (cookies)
+
 package main
 
 import (

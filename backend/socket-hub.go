@@ -1,3 +1,5 @@
+// Server socket interactions (based on gorilla websocket example)
+
 package main
 
 import "log"

@@ -1,3 +1,5 @@
+// Password hashing
+
 package main
 
 import (

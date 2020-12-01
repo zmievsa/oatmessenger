@@ -1,3 +1,5 @@
+// Everything related to users
+
 package main
 
 import (

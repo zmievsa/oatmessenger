@@ -1,3 +1,5 @@
+// Structs for receiving and sending json
+
 package main
 
 // JSONCredentials json struct

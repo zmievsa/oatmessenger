@@ -1,3 +1,5 @@
+// Everything related to message object
+
 package main
 
 import (

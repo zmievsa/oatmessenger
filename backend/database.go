@@ -1,3 +1,5 @@
+// database related stuff
+
 package main
 
 import (
