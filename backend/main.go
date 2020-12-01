@@ -6,7 +6,6 @@ import (
 	"log"
 	"net/http"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/rs/cors"
@@ -73,7 +72,7 @@ func handleRegistration(w http.ResponseWriter, r *http.Request) {
 
 func handleCheckCookieExistence(w http.ResponseWriter, r *http.Request) {
 	log.Println("checkCookieExistence()")
-	_, err := parseCookie(w, r)
+	_, _, err := parseCookieFromHeaders(r)
 	if err != nil {
 		log.Println("No cookie found.")
 		log.Println(err)
@@ -86,7 +85,7 @@ func handleCheckCookieExistence(w http.ResponseWriter, r *http.Request) {
 }
 func handleFindUsers(w http.ResponseWriter, r *http.Request) {
 	log.Println("findUsers()")
-	user, err := parseCookie(w, r)
+	user, _, err := parseCookieFromHeaders(r)
 	if err != nil {
 		log.Println("No cookie found.")
 		log.Println(err)
@@ -138,7 +137,7 @@ func handleLogout(w http.ResponseWriter, r *http.Request) {
 
 func handleGetAllDialogues(w http.ResponseWriter, r *http.Request) {
 	log.Println("getAllDialogues()")
-	user, err := parseCookie(w, r)
+	user, _, err := parseCookieFromHeaders(r)
 	if err != nil {
 		log.Println("No cookie found.")
 		log.Println(err)
@@ -149,35 +148,26 @@ func handleGetAllDialogues(w http.ResponseWriter, r *http.Request) {
 	defer db.Close()
 	users := []*User{}
 	if user.Dialogues != "" {
-		userIdsAsStrings := strings.Split(user.Dialogues, ";")
-		userIds := []int{}
-		// Convert str arr to int arr
-		for _, idAsStr := range userIdsAsStrings {
-			idAsInt, err := strconv.Atoi(idAsStr)
-			if err != nil {
-				panic(err)
-			}
-			userIds = append(userIds, idAsInt)
-		}
-		for _, id := range userIds {
+		userIDs, _ := getUserDialogues(user)
+		for _, id := range userIDs {
 			dialogueUser, _ := getUserByID(db, id)
 			users = append(users, dialogueUser)
 		}
-
 	}
 	json.NewEncoder(w).Encode(users)
 }
 
 func handleGetUser(w http.ResponseWriter, r *http.Request) {
 	log.Println("getUser()")
-	user, err := parseCookie(w, r)
+	user, cookie, err := parseCookieFromHeaders(r)
 	if err != nil {
 		log.Println("No cookie found.")
 		log.Println(err)
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
-	json.NewEncoder(w).Encode(user)
+	m := map[string]interface{}{"user": user, "cookie": cookie.Value}
+	json.NewEncoder(w).Encode(m)
 }
 
 func handleSetFullname(w http.ResponseWriter, r *http.Request) {
@@ -191,7 +181,7 @@ func handleSetFullname(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
-	user, err := parseCookie(w, r)
+	user, _, err := parseCookieFromHeaders(r)
 	if err != nil {
 		log.Println("No cookie found.")
 		log.Println(err)
@@ -205,7 +195,7 @@ func handleSetFullname(w http.ResponseWriter, r *http.Request) {
 
 func handleGetMessages(w http.ResponseWriter, r *http.Request) {
 	log.Println("getMessages()")
-	user, err := parseCookie(w, r)
+	user, _, err := parseCookieFromHeaders(r)
 	if err != nil {
 		log.Println("No cookie found.")
 		log.Println(err)
@@ -230,8 +220,42 @@ func handleGetMessages(w http.ResponseWriter, r *http.Request) {
 	log.Println(err)
 }
 
+func handleGetAnotherUser(w http.ResponseWriter, r *http.Request) {
+	log.Println("getUser()")
+	_, _, err := parseCookieFromHeaders(r)
+	if err != nil {
+		log.Println("No cookie found.")
+		log.Println(err)
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+	jsonData := new(JsonUserID)
+	err = json.NewDecoder(r.Body).Decode(jsonData)
+	if err != nil {
+		log.Println("No json arguments supplied.")
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	db := connectToDB(dbName)
+	defer db.Close()
+	anotherUser, err := getUserByID(db, jsonData.UserID)
+
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		fmt.Fprintf(w, "No user with id=%d found.", jsonData.UserID)
+		return
+	}
+
+	json.NewEncoder(w).Encode(anotherUser)
+}
+
 func main() {
 	initSecret()
+
+	hub := newHub()
+	go hub.run()
+
 	mux := http.NewServeMux()
 	mux.HandleFunc("/register/", handleRegistration)
 	mux.HandleFunc("/login/", handleLogin)
@@ -240,8 +264,12 @@ func main() {
 	mux.HandleFunc("/logout/", handleLogout)
 	mux.HandleFunc("/getAllDialogues/", handleGetAllDialogues)
 	mux.HandleFunc("/getUser/", handleGetUser)
+	mux.HandleFunc("/getAnotherUser/", handleGetAnotherUser)
 	mux.HandleFunc("/setFullName/", handleSetFullname)
 	mux.HandleFunc("/getMessages/", handleGetMessages)
+	mux.HandleFunc("/ws/", func(w http.ResponseWriter, r *http.Request) {
+		serveWs(hub, w, r)
+	})
 	c := cors.New(cors.Options{
 		AllowedOrigins:   allowedOrigins,
 		AllowCredentials: true,

@@ -14,7 +14,7 @@ const tokenSeparator = "."
 func generateDB(db *sql.DB) {
 	db.Exec(`CREATE TABLE "User" (
 		"ID"			INTEGER NOT NULL UNIQUE,
-		"login"			TEXT NOT NULL UNIQUE,
+		"login"			TEXT NOT NULL UNIQUE COLLATE NOCASE,
 		"full_name"		TEXT DEFAULT "",
 		"password_hash"	BLOB NOT NULL,
 		"dialogues" TEXT DEFAULT "",

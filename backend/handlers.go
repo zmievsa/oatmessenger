@@ -33,14 +33,9 @@ func signin(w http.ResponseWriter, creds Credentials) (err error) {
 	return nil
 }
 
-func parseCookie(w http.ResponseWriter, r *http.Request) (user *User, err error) {
-	c, err := r.Cookie(sessionTokenName)
-	if err != nil {
-		return
-	}
+func parseCookie(tknStr string) (user *User, err error) {
 
 	// Check cookie validity
-	tknStr := c.Value
 	claims := &jwt.MapClaims{}
 	tkn, err := jwt.ParseWithClaims(tknStr, claims, func(token *jwt.Token) (interface{}, error) {
 		return hmacSecret, nil
@@ -48,7 +43,6 @@ func parseCookie(w http.ResponseWriter, r *http.Request) (user *User, err error)
 
 	// Invalid token
 	if err != nil || !tkn.Valid {
-
 		signedString, _ := tkn.SignedString(hmacSecret)
 		return nil, fmt.Errorf("err: %s, Invalid cookie token: %s", err, signedString)
 	}
@@ -69,6 +63,39 @@ func parseCookie(w http.ResponseWriter, r *http.Request) (user *User, err error)
 		return
 	}
 	log.Printf("Found user with ID from the cookie! (Name: %s, ID: %d)\n", user.Login, user.ID)
+	return
+}
+
+func queryParams(r *http.Request, attrName string) (string, error) {
+	for k, v := range r.URL.Query() {
+		if k == attrName {
+			return v[0], nil
+		}
+	}
+	return "", fmt.Errorf("No cookie found in %s", r.URL.String())
+
+}
+
+func parseCookieFromURL(r *http.Request) (user *User, err error) {
+	cookie, err := queryParams(r, "cookie")
+	if err != nil {
+		log.Println(err)
+		return
+	}
+
+	tknStr := cookie
+	user, err = parseCookie(tknStr)
+	return
+}
+
+func parseCookieFromHeaders(r *http.Request) (user *User, cookie *http.Cookie, err error) {
+	cookie, err = r.Cookie(sessionTokenName)
+	if err != nil {
+		return
+	}
+
+	tknStr := cookie.Value
+	user, err = parseCookie(tknStr)
 	return
 }
 

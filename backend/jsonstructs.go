@@ -18,3 +18,17 @@ type JsonGetMessages struct {
 	UserWithID int `json:"user_with_id"`
 	Offset     int `json:"offset"`
 }
+
+type JsonUserID struct {
+	UserID int `json:"userID"`
+}
+
+type MessageJson struct {
+	UserIDFor   int    `json:"userID_for"`
+	Text        string `json:"text"`
+	Attachments string `json:"attachments"`
+}
+
+type CookieJson struct {
+	Cookie string `json:"cookie"`
+}

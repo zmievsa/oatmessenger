@@ -17,7 +17,7 @@
         <h2>Dialogues</h2>
         <ul id="dialogueList">
           <li v-for="(dialogue, index) in dialogues" :key="`dialogue-${index}`">
-            <button v-on:click="openChat(dialogue['user']['ID'])">
+            <button v-on:click="openChat('dialogue', dialogue['user']['ID'])">
               {{ dialogue["user"]["Login"] }} ({{
                 dialogue["user"]["FullName"]
               }})
@@ -25,16 +25,11 @@
           </li>
         </ul>
       </div>
-      <div class="column">
+      <div class="column" v-if="currentDialogueIndex !== -1">
         <h2>Chat</h2>
-        <nav v-if="currentDialogueIndex !== -1">
-          <ul>
-            <div
-              v-for="(message, i) in dialogues[currentDialogueIndex][
-                'messages'
-              ]"
-              :key="`message-${i}`"
-            >
+        <nav>
+          <ul id="messageList">
+            <div v-for="(message, i) in currentMessages" :key="`message-${i}`">
               <div
                 v-bind:class="
                   message['UserIDFrom'] === user['ID']
@@ -47,23 +42,30 @@
                 </b>
                 <p>{{ message["Text"] }}</p>
                 <span class="time-right">{{
-                  message["Datetime"].substring(12, 19)
+                  message["Datetime"].substring(12, 16)
                 }}</span>
               </div>
             </div>
           </ul>
-          <input
-            type="text"
-            name="message"
-            placeholder="Type your message here"
-            style="width: 70%; margin-left: 40px"
-          />
-          <span class="input-group-btn">
+          <span>
+            <input
+              v-model="chatNewMessage"
+              type="text"
+              name="message"
+              placeholder="Type your message here"
+              style="width: 50%; margin-left: 20px"
+            />
+
             <button
               type="button"
-              class="btn btn-primary btn-flat"
+              style="width: 75px"
+              v-on:click="
+                sendMessage(
+                  dialogues[currentDialogueIndex]['user']['ID'],
+                  chatNewMessage
+                )
+              "
               id="message-send"
-              style="float: right"
             >
               Send
             </button>
@@ -80,7 +82,7 @@
           />
           <ul id="userSearchList">
             <li v-for="(user, index) in searchedUsers" :key="`user-${index}`">
-              <button v-on:click="openChat(user['ID'])">
+              <button v-on:click="openChat('search', user['ID'])">
                 {{ user["Login"] }} ({{ user["FullName"] }})
               </button>
             </li>
@@ -92,6 +94,10 @@
 </template>
 <script>
 import axios from "axios";
+// import Vue from "vue";
+// import VueSocketIO from "vue-socket.io";
+
+// import SocketIO from "socket.io-client";
 
 export default {
   name: "Messenger",
@@ -104,9 +110,29 @@ export default {
       searchedUsers: [],
       newFullName: "",
       currentDialogueIndex: -1,
+      chatNewMessage: "",
+      socket: null,
+      cookie: "",
     };
   },
+  computed: {
+    currentMessages: function () {
+      return this.dialogues[this.currentDialogueIndex]["messages"];
+    },
+  },
   methods: {
+    sendMessage(userID, message) {
+      message = message.trim();
+      if (!message) return;
+      this.chatNewMessage = "";
+      this.socket.send(
+        JSON.stringify({
+          userID_for: userID,
+          text: message,
+          attachments: "",
+        })
+      );
+    },
     getUser(id) {
       console.log("getUser()");
       if (this.user["ID"] === id) return this.user;
@@ -118,7 +144,43 @@ export default {
     },
     buildInterface() {
       axios.get("/getUser/").then((res) => {
-        this.user = res.data;
+        this.user = res.data["user"];
+        this.cookie = res.data["cookie"];
+        console.log(res);
+        var conn = new WebSocket(
+          "ws://127.0.0.1:8090/ws/?cookie=" + this.cookie
+        );
+        conn.onclose = function (evt) {
+          console.log("CONNECTION CLOSED: ", evt);
+        };
+        conn.onmessage = (evt) => {
+          console.log("NEW SOCKET EVENT: ", evt);
+          var data = JSON.parse(evt.data);
+          var found = false;
+          for (var i = 0; i < this.dialogues.length; i++) {
+            var uid = this.dialogues[i]["user"]["ID"];
+            if (uid === data["UserIDFrom"] || uid === data["UserIDFor"]) {
+              this.dialogues[i]["messages"].push(data);
+              this.$nextTick(() => {
+                var obj = document.getElementById("messageList");
+                obj.scrollTop = obj.scrollHeight;
+              });
+              found = true;
+              break;
+            }
+          }
+          if (!found) {
+            axios
+              .post("/getAnotherUser/", { userID: data["UserIDFrom"] })
+              .then((res) => {
+                this.dialogues.push({ user: res.data, messages: [data] });
+              })
+              .catch((err) => {
+                console.log("Error: ", err.response);
+              });
+          }
+        };
+        this.socket = conn;
       });
       axios
         .get("/getAllDialogues/")
@@ -131,8 +193,17 @@ export default {
           console.log("Error: ", err.response);
         });
     },
-    openChat(val) {
+    openChat(type, val) {
       console.log("openChat(", val, ")");
+      if (
+        this.currentDialogueIndex !== -1 &&
+        type === "dialogue" &&
+        this.dialogues[this.currentDialogueIndex]["user"]["ID"] === val
+      ) {
+        this.currentDialogueIndex = -1;
+        this.chatNewMessage = "";
+        return;
+      }
       axios
         .post(
           "/getMessages/",
@@ -143,9 +214,18 @@ export default {
           var dialogueIndex = this.dialogues.findIndex((dialogue) => {
             return dialogue["user"]["ID"] === val;
           });
-          this.dialogues[dialogueIndex]["messages"] = res.data;
-          // this.dialogues.$set(dialogueIndex, dialogue);
+          if (dialogueIndex === -1) {
+            var searchedUsersIndex = this.searchedUsers.findIndex((user) => {
+              return user["ID"] === val;
+            });
+            this.dialogues.push({
+              user: this.searchedUsers[searchedUsersIndex],
+              messages: res.data,
+            });
+            dialogueIndex = this.dialogues.length - 1;
+          } else this.dialogues[dialogueIndex]["messages"] = res.data;
           this.currentDialogueIndex = dialogueIndex;
+          this.chatNewMessage = "";
         })
         .catch((err) => {
           console.log(err);
@@ -174,6 +254,9 @@ export default {
           this.newFullName = "";
         });
     },
+  },
+  destroyed: function () {
+    this.socket.close();
   },
   watch: {
     showInterface: function (val, oldval) {

@@ -58,7 +58,29 @@ func getMessagesByUserIds(db *sql.DB, userID1 int, userID2 int) (messages []*Mes
 	sort.SliceStable(messages, func(i, j int) bool {
 		return messages[i].Datetime.Before(messages[j].Datetime)
 	})
-	log.Println("Messages: ", messages)
 	return
 
+}
+
+func addMessage(db *sql.DB, userIDFrom int, userIDFor int, text string, attachments string, datetime time.Time) (message *Message, err error) {
+	createUserDialogue(db, userIDFrom, userIDFor)
+	time := datetime.Format(messageDatetimeLayout)
+	result, err := db.Exec(fmt.Sprintf(
+		`INSERT INTO "main"."message" ("user_id_from", "user_id_for", "text", "attachments", "datetime") VALUES (%d, %d, '%s', '%s', '%s');`, userIDFrom, userIDFor, text, attachments, time))
+	if err != nil {
+		fmt.Printf("Failed to insert message %s into database: %s\n", text, err.Error())
+		return
+	} else {
+		var lastInsertID int64
+		lastInsertID, err = result.LastInsertId()
+		message = &Message{
+			int(lastInsertID),
+			userIDFrom,
+			userIDFor,
+			text,
+			attachments,
+			datetime,
+		}
+		return
+	}
 }
