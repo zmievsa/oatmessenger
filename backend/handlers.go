@@ -9,15 +9,15 @@ import (
 	"github.com/dgrijalva/jwt-go"
 )
 
-func getCredentials(r *http.Request) (*Credentials, error) {
-	creds := new(Credentials)
+func getCredentials(r *http.Request) (*JSONCredentials, error) {
+	creds := new(JSONCredentials)
 	log.Println("DEBUG: GETCREDENTIALS()")
 	err := json.NewDecoder(r.Body).Decode(creds)
 	log.Println(creds.Username)
 	return creds, err
 }
 
-func signin(w http.ResponseWriter, creds Credentials) (err error) {
+func signin(w http.ResponseWriter, creds JSONCredentials) (err error) {
 	db := connectToDB(dbName)
 	defer db.Close()
 	user, err := getUserByName(db, creds.Username)

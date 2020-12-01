@@ -12,6 +12,7 @@ import (
 type User struct {
 	ID           int
 	Login        string
+	Email        string
 	FullName     string
 	PasswordHash []byte
 	Dialogues    string
@@ -21,9 +22,10 @@ func (u *User) String() string {
 	return fmt.Sprintf(`User:
 	ID: %d
 	login: %s
+	email: %s
 	fullname: %s
 	passwordHash: %s
-	dialogues: %s`, u.ID, u.Login, u.FullName, u.PasswordHash, u.Dialogues)
+	dialogues: %s`, u.ID, u.Login, u.Email, u.FullName, u.PasswordHash, u.Dialogues)
 }
 
 type scanner interface {
@@ -31,7 +33,7 @@ type scanner interface {
 }
 
 func (u *User) scan(dbUser scanner) error {
-	return dbUser.Scan(&u.ID, &u.Login, &u.FullName, &u.PasswordHash, &u.Dialogues)
+	return dbUser.Scan(&u.ID, &u.Login, &u.Email, &u.FullName, &u.PasswordHash, &u.Dialogues)
 }
 
 func getUserByName(db *sql.DB, name string) (*User, error) {
@@ -84,11 +86,11 @@ func getUserByToken(db *sql.DB, tokenString string) (*User, error) {
 	return user, err
 }
 
-func addUser(db *sql.DB, login string, plaintextPassword string) error {
+func addUser(db *sql.DB, login string, email string, plaintextPassword string) error {
 	hashedPassword := string(hashAndSalt([]byte(plaintextPassword)))
 	_, err := db.Exec(fmt.Sprintf(
-		`INSERT INTO "main"."user" ("login", "password_hash")
-		VALUES ('%s', '%s');`, login, hashedPassword))
+		`INSERT INTO "main"."user" ("login", "email", "password_hash")
+		VALUES ('%s', '%s', '%s');`, login, email, hashedPassword))
 	if err != nil {
 		fmt.Println("ERROR: ", err)
 	}
@@ -141,14 +143,18 @@ func createUserDialogue(db *sql.DB, user1ID int, user2ID int) error {
 		addUserIDToDialogue(user1, user2ID)
 		addUserIDToDialogue(user2, user1ID)
 
-		// user1 = "Pidor"
-		q := fmt.Sprintf(`	UPDATE user SET 'dialogues' = CASE
-								WHEN (id = %d) THEN '%s'
-								WHEN (id = %d) THEN '%s'
-   							END`, user1ID, user1.Dialogues, user2ID, user2.Dialogues)
-		_, err := db.Exec(q)
-		log.Println("SQL Query err: ", err)
-		return err
+		_, err := db.Exec(fmt.Sprintf(`UPDATE user SET dialogues = '%s' WHERE (ID=%d)`, user1.Dialogues, user1ID))
+		if err != nil {
+			log.Println("SQL Query err: ", err)
+			return err
+		}
+
+		_, err = db.Exec(fmt.Sprintf(`UPDATE user SET dialogues = '%s' WHERE (ID=%d)`, user2.Dialogues, user2ID))
+		if err != nil {
+			log.Println("SQL Query err: ", err)
+			return err
+		}
+
 	}
 	return nil
 }

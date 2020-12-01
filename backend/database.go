@@ -15,6 +15,7 @@ func generateDB(db *sql.DB) {
 	db.Exec(`CREATE TABLE "User" (
 		"ID"			INTEGER NOT NULL UNIQUE,
 		"login"			TEXT NOT NULL UNIQUE COLLATE NOCASE,
+		"email" 		TEXT NOT NULL UNIQUE COLLATE NOCASE,
 		"full_name"		TEXT NOT NULL DEFAULT "",
 		"password_hash"	BLOB NOT NULL,
 		"dialogues" TEXT NOT NULL DEFAULT "",

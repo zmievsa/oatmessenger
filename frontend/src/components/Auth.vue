@@ -6,6 +6,9 @@
         <input type="text" v-model="usernameModel" placeholder="Username" />
       </p>
       <p>
+        <input type="text" v-model="emailModel" placeholder="Email" />
+      </p>
+      <p>
         <input type="password" v-model="passwordModel" placeholder="Password" />
       </p>
       <!-- Password again: -->
@@ -22,6 +25,7 @@ export default {
   data: function () {
     return {
       usernameModel: "",
+      emailModel: "",
       passwordModel: "",
     };
   },
@@ -33,8 +37,21 @@ export default {
           ", " +
           this.passwordModel
       );
+      if (!this.emailModel.trim()) {
+        window.alert("The email field is required.");
+        return;
+      }
+      if (!this.usernameModel.trim()) {
+        window.alert("The username field is required.");
+        return;
+      }
+      if (!this.passwordModel.trim()) {
+        window.alert("The password field is required.");
+        return;
+      }
       var data = {
         username: this.usernameModel,
+        email: this.emailModel,
         password: this.passwordModel,
       };
       axios
@@ -45,18 +62,28 @@ export default {
           this.$emit("setcookie");
         })
         .catch((err) => {
-          console.log(err.response);
+          if (err.response.status === 403)
+            window.alert("This user already exists.");
         });
     },
     login: function () {
       console.log(
-        "Clicked register. Input fields: " +
+        "Clicked login. Input fields: " +
           this.usernameModel +
           ", " +
           this.passwordModel
       );
+      if (!this.usernameModel.trim()) {
+        window.alert("The username field is required.");
+        return;
+      }
+      if (!this.passwordModel.trim()) {
+        window.alert("The password field is required.");
+        return;
+      }
       var data = {
         username: this.usernameModel,
+        email: this.emailModel,
         password: this.passwordModel,
       };
       axios

@@ -57,7 +57,7 @@ func handleRegistration(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusForbidden)
 		return
 	}
-	err = addUser(db, creds.Username, creds.Password)
+	err = addUser(db, creds.Username, creds.Email, creds.Password)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return

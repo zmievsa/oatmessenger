@@ -1,8 +1,9 @@
 package main
 
-// Credentials json struct
-type Credentials struct {
+// JSONCredentials json struct
+type JSONCredentials struct {
 	Username string `json:"username"`
+	Email    string `json:"email"`
 	Password string `json:"password"`
 }
 
