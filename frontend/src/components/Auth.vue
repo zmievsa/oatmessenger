@@ -66,8 +66,10 @@ export default {
         .then(() => {
           this.$emit("setcookie");
         })
-        .catch((err) => {
-          console.log(err.response);
+        .catch(() => {
+          window.alert(
+            "The user/password combination you typed was not found."
+          );
         });
     },
   },
